@@ -1,5 +1,6 @@
 package org.example;
 
+// 3. Рекурсия
 public class Chapter3 {
     public static void main(String[] args) {
         int x = 10;

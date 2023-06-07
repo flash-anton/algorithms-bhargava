@@ -51,55 +51,44 @@ public class Chapter4 {
     }
 
     public static void quickSort(int[] arr) {
-        quickSort(arr, 0, arr.length);
+        quickSort(arr, 0, arr.length-1);
     }
 
     // быстрая сортировка по книге: массив меньших опорного, опорный, массив не меньших опорного.
-    // время и память хуже библиотечных примерно в 2 раза.
-    private static void quickSort(int[] arr, int offset, int size) {
-        if (size < 2) {
+    private static void quickSort(int[] arr, int begin, int end) {
+        if (begin >= end) {
             return;
         }
 
-        int smallerSize = 0;
-        int notSmallerOffset = size;
-        {
-            int[] buf = new int[size];
-            int mid = size / 2;
-            int pivot = arr[offset + mid];
+        int pivot = begin;
+        int pivotValue = arr[end];
 
-            for (int i = 0; i < size; i++) {
-                if (i == mid) {
-                    continue;
-                }
-                int arrItem = arr[offset + i];
-                if (arrItem < pivot) {
-                    buf[smallerSize++] = arrItem;
-                } else {
-                    buf[--notSmallerOffset] = arrItem;
-                }
+        for (int i = begin; i < end; i++) {
+            if (arr[i] < pivotValue) {
+                int temp = arr[i];
+                arr[i] = arr[pivot];
+                arr[pivot] = temp;
+                pivot++;
             }
-
-            buf[smallerSize] = pivot;
-
-            System.arraycopy(buf, 0, arr, offset, size);
         }
+        arr[end] = arr[pivot];
+        arr[pivot] = pivotValue;
 
-        quickSort(arr, offset, smallerSize);
-        quickSort(arr, offset + notSmallerOffset, size - notSmallerOffset);
+        quickSort(arr, begin, pivot - 1);
+        quickSort(arr, pivot + 1, end);
     }
 
     public static void measureSorts(int arraySize) {
         int[] arr = new Random().ints(arraySize, 1, Integer.MAX_VALUE).toArray();
         System.out.printf("Time measuring for int[%d] array (%d bytes)\n", arr.length, 4 * arr.length);
 
-        System.out.printf("Arrays.sort()               : % 16d\n", // 0.5 GB -> 11 sec 1.25 GB
+        System.out.printf("Arrays.sort()               : % 16d\n",
                 Ticker.measureMs(Arrays.copyOf(arr, arr.length), Arrays::sort));
 
-        System.out.printf("IntStream.sorted().toArray(): % 16d\n", // 0.5 GB -> 12 sec 1.25 GB
+        System.out.printf("IntStream.sorted().toArray(): % 16d\n",
                 Ticker.measureMs(Arrays.stream(arr), s -> s.sorted().toArray()));
 
-        System.out.printf("quickSort2()                : % 16d\n", // 0.5 GB -> 24 sec 2.5 GB
+        System.out.printf("quickSort()                 : % 16d\n",
                 Ticker.measureMs(Arrays.copyOf(arr, arr.length), Chapter4::quickSort));
     }
 }

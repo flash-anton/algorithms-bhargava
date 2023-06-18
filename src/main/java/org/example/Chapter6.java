@@ -3,6 +3,7 @@ package org.example;
 import org.example.graph.DirectedAcyclicGraph;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 // 6. Поиск в ширину
 public class Chapter6 {
@@ -19,23 +20,44 @@ public class Chapter6 {
             907, 911, 919, 929, 937, 941, 947, 953, 967, 971, 977, 983, 991, 997);
 
     public static void main(String[] args) {
+        checkBookExample();
+        checkGenerated();
+    }
+
+    static void checkBookExample() {
+        DirectedAcyclicGraph<String> graph = new DirectedAcyclicGraph<>();
+        graph.putEdges("you", List.of("alice", "bob", "claire"));
+        graph.putEdges("bob", List.of("anuj", "peggy"));
+        graph.putEdges("alice", List.of("peggy"));
+        graph.putEdges("claire", List.of("thom", "jonny"));
+        System.out.println(graph);
+
+        graph.setLog(System.out);
+        List<String> track = graph.breadthFirstSearch("you", end -> end.endsWith("m"));
+        if (track.isEmpty()) {
+            System.out.println("track to mango seller not found");
+        } else {
+            System.out.println("track to mango seller is " + Util.joining(track, " -> "));
+        }
+    }
+
+    static void checkGenerated() {
         int nodesCount = 9;
         int minNodeValue = 0;
         int maxNodeValue = 1000;
         int maxEdgesCount = 3;
         int maxWeight = 0;
+        AtomicInteger node = new AtomicInteger();
         DirectedAcyclicGraph<Integer> graph = DirectedAcyclicGraph.generate(nodesCount, maxEdgesCount, maxWeight,
-                () -> new Random().nextInt(minNodeValue, maxNodeValue));
+                () -> node.updateAndGet(v -> new Random().nextInt(minNodeValue, maxNodeValue)));
         System.out.println(graph);
 
-        // Возвращает не просто искомый узел (6. Поиск в ширину), а кратчайший путь до него.
         graph.setLog(System.out);
-        int begin = graph.getEdges().keySet().stream().findAny().orElseThrow();
-        List<Integer> track = graph.breadthFirstSearch(begin, SIMPLE_NUMBERS::contains);
+        List<Integer> track = graph.breadthFirstSearch(node.get(), SIMPLE_NUMBERS::contains);
         if (track.isEmpty()) {
             System.out.println("track to simple not found");
         } else {
-            System.out.println("track to simple is " + Util.collectionJoining(track, " -> "));
+            System.out.println("track to simple is " + Util.joining(track, " -> "));
         }
     }
 }

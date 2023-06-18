@@ -12,7 +12,6 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class DirectedAcyclicGraph<T> {
     @NonNull
@@ -20,10 +19,10 @@ public class DirectedAcyclicGraph<T> {
     @Setter
     private PrintStream log = new PrintStream(OutputStream.nullOutputStream());
 
-    private final HashMap<T, HashMap<T, Integer>> edges = new HashMap<>();
+    private final Map<T, Map<T, Integer>> edges = new HashMap<>();
 
     public static <T> DirectedAcyclicGraph<T> generate(int nodesCount, int maxEdgesCount, int maxWeight,
-                                                       @NonNull Supplier<T> nodesSupplier) {
+                                                       @NonNull Supplier<T> nodeSupplier) {
         Assertions.assertTrue(nodesCount >= 3, "Graph must contain at least 3 nodes");
         Assertions.assertTrue(maxEdgesCount >= 2, "Max graph edges must be at least 2");
         Assertions.assertTrue(maxWeight >= 0, "Max graph edges weight must be at least 0");
@@ -34,25 +33,24 @@ public class DirectedAcyclicGraph<T> {
         int maxWeightExclusive = maxWeight + 1;
 
         DirectedAcyclicGraph<T> dag = new DirectedAcyclicGraph<>();
-        dag.edges.put(nodesSupplier.get(), new HashMap<>());
+        dag.edges.put(nodeSupplier.get(), new HashMap<>());
         while (dag.edges.size() < nodesCount) {
 
-            T from = nodesSupplier.get();
+            T from = nodeSupplier.get();
             if (dag.edges.containsKey(from)) {
                 continue;
             }
 
-            ArrayList<T> toList = new ArrayList<>(dag.edges.keySet());
+            ArrayList<T> nodes = new ArrayList<>(dag.edges.keySet());
 
-            int fromEdgesCount = random.nextInt(minEdgesCountInclusive, maxEdgesCountExclusive);
-            fromEdgesCount = Math.min(fromEdgesCount, toList.size());
-            HashMap<T, Integer> fromEdges = new HashMap<>(fromEdgesCount);
-            Util.randomUniqInts(fromEdgesCount, 0, toList.size() - 1)
-                    .stream()
-                    .map(toList::get)
-                    .forEach(to -> fromEdges.put(to, random.nextInt(maxWeightExclusive)));
+            int minNodeIndex = 0;
+            int maxNodeIndex = nodes.size() - 1;
+            int toListSize = Math.min(nodes.size(), random.nextInt(minEdgesCountInclusive, maxEdgesCountExclusive));
 
-            dag.edges.put(from, fromEdges);
+            Map<T, Integer> toList = Util.ints(toListSize, minNodeIndex, maxNodeIndex).parallelStream()
+                    .collect(Collectors.toMap(nodes::get, i -> random.nextInt(maxWeightExclusive)));
+
+            dag.edges.put(from, toList);
         }
         return dag;
     }
@@ -67,13 +65,13 @@ public class DirectedAcyclicGraph<T> {
             Assertions.assertTrue(containsFrom || containsTo,
                     "Graph must be empty or contain at least one of the specified nodes");
             if (containsFrom && containsTo) {
-                Assertions.assertFalse(isCyclic(from, to), "Graph must be acyclic");
+                Assertions.assertTrue(breadthFirstSearch(to, from::equals).isEmpty(), "Graph must be acyclic");
             }
         }
 
-        HashMap<T, Integer> fromEdges = edges.getOrDefault(from, new HashMap<>());
-        fromEdges.put(to, weight);
-        edges.putIfAbsent(from, fromEdges);
+        Map<T, Integer> toList = edges.getOrDefault(from, new HashMap<>());
+        toList.put(to, weight);
+        edges.putIfAbsent(from, toList);
         edges.putIfAbsent(to, new HashMap<>());
     }
 
@@ -81,20 +79,29 @@ public class DirectedAcyclicGraph<T> {
         putEdge(from, to, 0);
     }
 
-    public void removeEdge(@NonNull T from, @NonNull T to) {
-        Optional.ofNullable(edges.get(from)).ifPresent(fromEdges -> fromEdges.remove(to));
+    public void putEdges(@NonNull T from, @NonNull List<T> toList) {
+        toList.forEach(to -> putEdge(from, to));
+    }
 
-        if (edges.containsKey(to) && edges.get(to).isEmpty()) {
-            Stream<T> t = edges.entrySet().parallelStream().flatMap(e -> e.getValue().keySet().stream()).distinct();
-            if (t.noneMatch(to::equals)) {
-                edges.remove(to);
-            }
+    public void removeEdge(@NonNull T from, @NonNull T to) {
+        boolean containsFrom = edges.containsKey(from);
+        boolean containsTo = edges.containsKey(to);
+        if (!containsFrom || !containsTo) {
+            return;
         }
+
+        edges.get(from).remove(to);
+
+        if (edges.get(to).size() > 0 || edges.entrySet().parallelStream().anyMatch(e -> e.getValue().containsKey(to))) {
+            return;
+        }
+
+        edges.remove(to);
     }
 
     @NonNull
-    public HashMap<T, HashMap<T, Integer>> getEdges() {
-        return (HashMap<T, HashMap<T, Integer>>) edges.entrySet().parallelStream()
+    public Map<T, Map<T, Integer>> getEdges() {
+        return edges.entrySet().parallelStream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> new HashMap<>(e.getValue())));
     }
 
@@ -103,7 +110,7 @@ public class DirectedAcyclicGraph<T> {
      */
     @NonNull
     public List<T> breadthFirstSearch(@NonNull T begin, @NonNull Predicate<T> endValidator) {
-        Assertions.assertTrue(edges.containsKey(begin), "Graph must contains begin node");
+        Assertions.assertTrue(edges.containsKey(begin), "Graph must contain the specified begin-node");
 
         LinkedList<LinkedList<T>> tracks = new LinkedList<>();
         tracks.add(new LinkedList<>(List.of(begin)));
@@ -112,7 +119,7 @@ public class DirectedAcyclicGraph<T> {
 
         while (!tracks.isEmpty()) {
             LinkedList<T> track = tracks.poll();
-            log.printf("check last node of track %s ... ", Util.collectionJoining(track, " -> "));
+            log.printf("BFS: check last node of track %s ... ", Util.joining(track, " -> "));
 
             T node = track.peekLast();
 
@@ -142,25 +149,23 @@ public class DirectedAcyclicGraph<T> {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        edges.forEach((from, nodeEdges) -> {
+        boolean weighted = edges.values().parallelStream().flatMap(v -> v.values().stream()).anyMatch(i -> i != 0);
+        edges.forEach((from, toList) -> {
             sb.append(from);
-            if (!nodeEdges.isEmpty()) {
+            if (toList.size() > 0) {
                 sb.append(" -> ");
-                nodeEdges.forEach((to, weight) -> sb.append(String.format("%s(%d), ", to, weight)));
-                sb.delete(sb.length()-2, sb.length());
+                toList.forEach((to, weight) -> {
+                    if (weighted) {
+                        sb.append(String.format("%s(%d), ", to, weight));
+                    } else {
+                        sb.append(String.format("%s, ", to));
+                    }
+                });
+                sb.delete(sb.length() - 2, sb.length());
             }
             sb.append(System.lineSeparator());
         });
-        sb.delete(sb.length()-1, sb.length());
+        sb.delete(sb.length() - 1, sb.length());
         return sb.toString();
-    }
-
-    private boolean isCyclic(@NonNull T from, @NonNull T to) {
-        for (T next : edges.get(to).keySet()) {
-            if (from.equals(next) || isCyclic(from, next)) {
-                return true;
-            }
-        }
-        return false;
     }
 }

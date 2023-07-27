@@ -55,15 +55,15 @@ public class Chapter6 {
     static List<String> breadthFirstSearchTrack() {
         LinkedList<String> searchQueue = new LinkedList<>(List.of("you"));
         HashSet<String> searched = new HashSet<>();
-        HashMap<String, String> backLog = new HashMap<>(Map.of("you", "")); // <to, from>
+        HashMap<String, String> parents = new HashMap<>(); // <child, parent>
         while (!searchQueue.isEmpty()) {
             String person = searchQueue.poll();
             if (!searched.contains(person)) {
                 if (isMangoSeller(person)) {
                     LinkedList<String> track = new LinkedList<>();
-                    while (!person.isEmpty()) {
+                    while (person != null) {
                         track.addFirst(person);
-                        person = backLog.get(person);
+                        person = parents.get(person);
                     }
                     return track;
                 } else {
@@ -71,7 +71,7 @@ public class Chapter6 {
                     searchQueue.addAll(nextList);
                     searched.add(person);
                     for (String next : nextList) {
-                        backLog.put(next, person);
+                        parents.put(next, person);
                     }
                 }
             }

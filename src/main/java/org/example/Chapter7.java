@@ -2,7 +2,7 @@ package org.example;
 
 import java.util.*;
 
-// 7. Алгоритм Дейкстры
+// 7. Алгоритм Дейкстры, O(Vertices^2)
 public class Chapter7 {
     public static void main(String[] args) {
         example0();

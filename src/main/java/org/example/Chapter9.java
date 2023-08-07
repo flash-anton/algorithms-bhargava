@@ -13,6 +13,53 @@ public class Chapter9 {
 
     public static void main(String[] args) {
         knapsackProblem();
+
+        System.out.println("\nlongestCommonSubstringLength");
+        System.out.println(longestCommonSubstringLength("hish", "fish") + " for hish and fish");
+        System.out.println(longestCommonSubstringLength("hish", "vista") + " for hish and vista");
+
+        System.out.println("\nlongestCommonSubsequenceLength");
+        System.out.println(longestCommonSubsequenceLength("fosh", "fish") + " for fosh and fish");
+        System.out.println(longestCommonSubsequenceLength("fosh", "fort") + " for fosh and fort");
+
+        System.out.println("\nlongestCommonSubstringLength");
+        System.out.println(longestCommonSubstringLength("blue", "clues") + " for blue and clues");
+    }
+
+    static int longestCommonSubstringLength(String a, String b) {
+        int[][] cell = new int[a.length() + 1][b.length() + 1];
+
+        int max = 0;
+        for (int i = 1; i < a.length() + 1; i++) {
+            for (int j = 1; j < b.length() + 1; j++) {
+                if (a.charAt(i - 1) == b.charAt(j - 1)) {
+                    cell[i][j] = cell[i - 1][j - 1] + 1;
+                    if (cell[i][j] > max) {
+                        max = cell[i][j];
+                    }
+                }
+            }
+        }
+        return max;
+    }
+
+    static int longestCommonSubsequenceLength(String a, String b) {
+        int[][] cell = new int[a.length() + 1][b.length() + 1];
+
+        int max = 0;
+        for (int i = 1; i < a.length() + 1; i++) {
+            for (int j = 1; j < b.length() + 1; j++) {
+                if (a.charAt(i - 1) == b.charAt(j - 1)) {
+                    cell[i][j] = cell[i - 1][j - 1] + 1;
+                    if (cell[i][j] > max) {
+                        max = cell[i][j];
+                    }
+                } else {
+                    cell[i][j] = Math.max(cell[i - 1][j], cell[i][j - 1]);
+                }
+            }
+        }
+        return max;
     }
 
     static void knapsackProblem() {
@@ -26,11 +73,11 @@ public class Chapter9 {
         System.out.println("   " + knapsackProblem.add(items).solving());
 
         Item iPhone = new Item("iPhone", 1, 2000);
-        System.out.println(">> + " + iPhone );
+        System.out.println(">> + " + iPhone);
         System.out.println("   " + knapsackProblem.add(iPhone).solving());
 
         Item mp3Player = new Item("MP3-плеер", 1, 1000);
-        System.out.println(">> + " + mp3Player );
+        System.out.println(">> + " + mp3Player);
         System.out.println("   " + knapsackProblem.add(mp3Player).solving());
 
         System.out.println(">> " + (items = List.of(tapeRecorder, notebook, guitar)));
